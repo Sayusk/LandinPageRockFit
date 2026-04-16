@@ -1,13 +1,13 @@
 .whatsapp-btn {
   position: fixed;
-  bottom: 80px; /* sobe um pouco para não encobrir o footer */
+  bottom: 80px; 
   right: 20px;
   background: #25d366;
   border-radius: 50%;
   padding: 10px;
   box-shadow: 0 2px 5px rgba(0,0,0,0.3);
   transition: transform 0.3s;
-  z-index: 1000; /* sempre acima do conteúdo */
+  z-index: 1000;
 }
 
 .whatsapp-btn:hover {
