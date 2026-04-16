@@ -1,0 +1,15 @@
+.App {
+  font-family: Arial, sans-serif;
+  scroll-behavior: smooth;
+}
+
+section {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  background: #f4f4f4;
+  border-bottom: 1px solid #ddd;
+}
