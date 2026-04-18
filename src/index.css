@@ -1,5 +1,13 @@
-body {
+html, body {
+  height: 100%;
   margin: 0;
-  padding: 0;
-  background: #fff;
+  scroll-snap-type: y mandatory; 
+  overflow-y: scroll;
+  scroll-behavior: smooth;       
+}
+
+@media (max-width: 768px) {
+  html, body {
+    scroll-snap-type: none;  
+  }
 }
