@@ -60,22 +60,22 @@
 
 @media (max-width: 768px) {
   .cards {
-    grid-template-columns: 1fr;   /* cards empilhados */
+    grid-template-columns: 1fr;   
     gap: 1rem;
   }
 
   .card {
-    height: auto;                 /* altura natural */
+    height: auto;                
     padding: 1.2rem;
-    margin-bottom: 1.5rem;        /* espaço entre cards */
+    margin-bottom: 1.5rem;     
   }
 
   .consultoria {
-    padding-bottom: 3rem;         /* espaço extra no fim da seção */
+    padding-bottom: 3rem;        
   }
 
   .sobre {
-    margin-top: 3rem;             /* separa bem da consultoria */
+    margin-top: 3rem;            
   }
 }
 

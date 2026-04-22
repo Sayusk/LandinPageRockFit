@@ -8,12 +8,12 @@ const ConsultoriaSection = () => {
         <h1>Com a minha consultoria você vai ter:</h1>
         <div className="cards">
           <div className="card">
-            <h2>Treinos Personalizados</h2>
+            <h2>Planejamento de Rotina</h2>
             <hr />
             <p>Planos de treino ajustados ao seu nível e objetivos.</p>
           </div>
           <div className="card">
-            <h2>Estratégia Alimentar</h2>
+            <h2>Ajustes Periódicos</h2>
             <hr />
             <p>Orientação nutricional adaptada à sua rotina.</p>
           </div>

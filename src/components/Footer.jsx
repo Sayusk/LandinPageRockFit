@@ -37,7 +37,7 @@ const Footer = () => {
         <div className="marca">
           <h3>ROCKFIT BRASIL</h3>
           <p>Conheça nossa marca de roupas</p>
-          <a href="https://rockfit.com" target="_blank" rel="noopener noreferrer">→ Visitar Loja</a>
+          <a href="https://comingsoon" target="_blank" rel="noopener noreferrer">→ Visitar Loja</a>
         </div>
 
         {/* CTA */}

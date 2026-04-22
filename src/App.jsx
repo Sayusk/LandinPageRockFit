@@ -5,7 +5,6 @@ import ConsultoriaSection from "./components/ConsultoriaSection";
 import SobreSection from "./components/SobreSection";
 import PlanosSection from "./components/PlanosSection";
 import FAQSection from "./components/FAQSection";
-import Section from "./components/Section";
 import Footer from "./components/Footer";
 import WhatsAppButton from "./components/WhatsAppButton";
 
