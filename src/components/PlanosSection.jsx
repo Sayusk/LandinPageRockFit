@@ -18,6 +18,8 @@ const PlanosSection = () => {
           <ul className="lists">
             <li className="list"><span>✓</span><p>1 mês de acompanhamento</p></li>
             <li className="list"><span>✓</span><p>Suporte direto comigo</p></li>
+            <li className="list"><span>✓</span><p>Anamnese</p></li>
+            <li className="list"><span>✓</span><p>PAR-Q</p></li>
           </ul>
           <div className="button-container">
             <button type="button">Assinar</button>
@@ -36,6 +38,8 @@ const PlanosSection = () => {
           <ul className="lists">
             <li className="list"><span>✓</span><p>3 meses de acompanhamento</p></li>
             <li className="list"><span>✓</span><p>Suporte contínuo</p></li>
+            <li className="list"><span>✓</span><p>Anamnese</p></li>
+            <li className="list"><span>✓</span><p>PAR-Q</p></li>
             <li className="list"><span>✓</span><p>Economia de 15%</p></li>
           </ul>
           <div className="button-container">
@@ -55,6 +59,8 @@ const PlanosSection = () => {
           <ul className="lists">
             <li className="list"><span>✓</span><p>6 meses de acompanhamento</p></li>
             <li className="list"><span>✓</span><p>Suporte premium</p></li>
+            <li className="list"><span>✓</span><p>Anamnese</p></li>
+            <li className="list"><span>✓</span><p>PAR-Q</p></li>
             <li className="list"><span>✓</span><p>Economia de 25%</p></li>
           </ul>
           <div className="button-container">

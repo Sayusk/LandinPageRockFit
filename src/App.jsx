@@ -1,5 +1,6 @@
 import React from "react";
 import "./App.css";
+import "./components/Section.css";
 import HeroSection from "./components/HeroSection";
 import ConsultoriaSection from "./components/ConsultoriaSection";
 import SobreSection from "./components/SobreSection";
@@ -13,7 +14,7 @@ function App() {
     <div className="App">
       <HeroSection />
       <ConsultoriaSection /> 
-      <SobreSection />
+      {/* <SobreSection /> */}
       <PlanosSection />
       <FAQSection />
 

@@ -3,23 +3,14 @@
   scroll-behavior: smooth;
 }
 
-html, body {
-  height: 100%;
-  margin: 0;
-  scroll-snap-type: y proximity; /* pode manter proximity ou mandatory */
-  overflow-y: auto;              /* permite scroll sem forçar a barra */
-  scroll-behavior: smooth;
-}
-
-/* Esconde a barra de rolagem em navegadores modernos */
 html::-webkit-scrollbar,
 body::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Edge */
+  display: none; 
 }
 
 html, body {
-  -ms-overflow-style: none;  /* IE e Edge antigo */
-  scrollbar-width: none;     /* Firefox */
+  -ms-overflow-style: none;  
+  scrollbar-width: none;     
 }
 
 footer {

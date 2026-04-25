@@ -10,12 +10,12 @@ const ConsultoriaSection = () => {
           <div className="card">
             <h2>Planejamento de Rotina</h2>
             <hr />
-            <p>Planos de treino ajustados ao seu nível e objetivos.</p>
+            <p>Organização da sua rotina de treinos e hábitos para encaixar no seu dia a dia, garantindo consistência e foco nos seus objetivos.</p>
           </div>
           <div className="card">
             <h2>Ajustes Periódicos</h2>
             <hr />
-            <p>Orientação nutricional adaptada à sua rotina.</p>
+            <p>Acompanhamento contínuo com atualizações estratégicas no seu plano de treino e rotina, conforme sua evolução, resultados e feedback.</p>
           </div>
           <div className="card">
             <h2>Acompanhamento Direto</h2>
