@@ -1,29 +1,39 @@
 import React from "react";
 import "./App.css";
 import "./components/Section.css";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+
 import HeroSection from "./components/HeroSection";
 import ConsultoriaSection from "./components/ConsultoriaSection";
-import SobreSection from "./components/SobreSection";
 import PlanosSection from "./components/PlanosSection";
 import FAQSection from "./components/FAQSection";
 import Footer from "./components/Footer";
 import WhatsAppButton from "./components/WhatsAppButton";
 
-function App() {
+import Checkout from "./pages/Checkout";
+
+// Página principal (sua landing)
+const Home = () => {
   return (
-    <div className="App">
+    <>
       <HeroSection />
-      <ConsultoriaSection /> 
-      {/* <SobreSection /> */}
+      <ConsultoriaSection />
       <PlanosSection />
       <FAQSection />
-
-      {/* Footer */}
       <Footer />
-
-      {/* Botão flutuante WhatsApp */}
       <WhatsAppButton />
-    </div>
+    </>
+  );
+};
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/checkout" element={<Checkout />} />
+      </Routes>
+    </Router>
   );
 }
 

@@ -1,10 +1,18 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import "./PlanosSection.css";
 
 const PlanosSection = () => {
+  const navigate = useNavigate();
+
+  const handleCheckout = (plano) => {
+    navigate("/checkout", { state: plano });
+  };
+
   return (
     <section id="planos" className="section planos">
       <h1>Nossos Planos</h1>
+
       <div className="planos-container">
 
         {/* Plano Mensal */}
@@ -15,14 +23,25 @@ const PlanosSection = () => {
               <span>R$</span>100<span>/mês</span>
             </div>
           </div>
+
           <ul className="lists">
             <li className="list"><span>✓</span><p>1 mês de acompanhamento</p></li>
             <li className="list"><span>✓</span><p>Suporte direto comigo</p></li>
             <li className="list"><span>✓</span><p>Anamnese</p></li>
             <li className="list"><span>✓</span><p>PAR-Q</p></li>
           </ul>
+
           <div className="button-container">
-            <button type="button">Assinar</button>
+            <button
+              onClick={() =>
+                handleCheckout({
+                  nome: "Plano Mensal",
+                  preco: "R$100/mês"
+                })
+              }
+            >
+              Assinar
+            </button>
           </div>
         </div>
 
@@ -35,6 +54,7 @@ const PlanosSection = () => {
             </div>
             <p>ou R$ 255,00 à vista</p>
           </div>
+
           <ul className="lists">
             <li className="list"><span>✓</span><p>3 meses de acompanhamento</p></li>
             <li className="list"><span>✓</span><p>Suporte contínuo</p></li>
@@ -42,8 +62,18 @@ const PlanosSection = () => {
             <li className="list"><span>✓</span><p>PAR-Q</p></li>
             <li className="list"><span>✓</span><p>Economia de 15%</p></li>
           </ul>
+
           <div className="button-container">
-            <button type="button">Assinar</button>
+            <button
+              onClick={() =>
+                handleCheckout({
+                  nome: "Plano Trimestral",
+                  preco: "R$85/mês ou R$255 à vista"
+                })
+              }
+            >
+              Assinar
+            </button>
           </div>
         </div>
 
@@ -56,6 +86,7 @@ const PlanosSection = () => {
             </div>
             <p>ou R$ 450,00 à vista</p>
           </div>
+
           <ul className="lists">
             <li className="list"><span>✓</span><p>6 meses de acompanhamento</p></li>
             <li className="list"><span>✓</span><p>Suporte premium</p></li>
@@ -63,8 +94,18 @@ const PlanosSection = () => {
             <li className="list"><span>✓</span><p>PAR-Q</p></li>
             <li className="list"><span>✓</span><p>Economia de 25%</p></li>
           </ul>
+
           <div className="button-container">
-            <button type="button">Assinar</button>
+            <button
+              onClick={() =>
+                handleCheckout({
+                  nome: "Plano Semestral",
+                  preco: "R$75/mês ou R$450 à vista"
+                })
+              }
+            >
+              Assinar
+            </button>
           </div>
         </div>
 
