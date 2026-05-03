@@ -27,7 +27,7 @@ export default function HeroSection() {
           src={heroImg}
           alt="Treino fitness"
           className="w-full h-full object-cover"
-          style={{ objectPosition: 'center top' }}
+          style={{ objectPosition: 'right top' }}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-dark via-dark/85 to-dark/40" />
         <div className="absolute inset-0 bg-gradient-to-t from-dark via-transparent to-transparent" />
