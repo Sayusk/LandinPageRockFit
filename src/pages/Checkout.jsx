@@ -7,8 +7,10 @@ import logo from '../assets/Rockfitlogo.png';
 
 const publicKey = import.meta.env.VITE_MERCADO_PAGO_PUBLIC_KEY || '';
 
-if (publicKey) {
+// Guard para garantir init única mesmo com HMR no Vite
+if (publicKey && !window.__mpInitialized) {
   initMercadoPago(publicKey, { locale: 'pt-BR' });
+  window.__mpInitialized = true;
 }
 
 function CheckIcon() {
