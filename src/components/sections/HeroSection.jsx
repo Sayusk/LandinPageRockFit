@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/Rockfitlogo.png';
 import heroImg from '../../assets/imagem1.jpg';
+import { MapPin, Dumbbell, MessageCircle} from 'lucide-react';
 
 const CREDIBILITY_ITEMS = [
-  { icon: '📍', label: 'Acompanhamento online' },
-  { icon: '🏋️', label: 'Treinos personalizados' },
-  { icon: '💬', label: 'Suporte direto' },
+  { icon: MapPin, label: 'Acompanhamento online' },
+  { icon: Dumbbell, label: 'Treinos personalizados' },
+  { icon: MessageCircle, label: 'Suporte direto' },
 ];
 
 export default function HeroSection() {
@@ -19,7 +20,6 @@ export default function HeroSection() {
     <section
       id="inicio"
       className="relative min-h-screen flex items-center overflow-hidden bg-dark"
-      style={{ paddingTop: '5rem' }}
     >
       {/* Background image */}
       <div className="absolute inset-0 z-0">
@@ -41,7 +41,7 @@ export default function HeroSection() {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-5 md:px-8 w-full py-20 md:py-28">
+      <div className="relative z-10 max-w-7xl mx-auto px-5 md:px-8 w-full pt-12 pb-16 md:pt-16 md:pb-20">
         <div className="max-w-2xl">
           {/* Logo */}
           <div className="mb-8">
@@ -94,7 +94,7 @@ export default function HeroSection() {
                 key={item.label}
                 className="flex items-center gap-2 px-4 py-2 rounded-full glass text-xs font-medium text-light/70"
               >
-                <span>{item.icon}</span>
+                <item.icon className="w-4 h-4 text-brand" />
                 <span>{item.label}</span>
               </div>
             ))}

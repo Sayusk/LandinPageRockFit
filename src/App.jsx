@@ -1,5 +1,4 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Header from './components/layout/Header.jsx';
 import Footer from './components/layout/Footer.jsx';
 import WhatsAppButton from './components/WhatsAppButton.jsx';
 import Home from './pages/Home.jsx';
@@ -9,7 +8,6 @@ import AdminAlunos from './pages/admin/Alunos.jsx';
 function Layout({ children }) {
   return (
     <>
-      <Header />
       {children}
       <Footer />
       <WhatsAppButton />

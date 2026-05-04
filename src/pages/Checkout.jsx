@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getPlanBySlug } from '../data/plans.js';
 import { createSubscription } from '../services/mercadoPagoService.js';
 import logo from '../assets/Rockfitlogo.png';
+import { ShieldCheck, Lock, ChevronLeft } from 'lucide-react';
 
 const publicKey = import.meta.env.VITE_MERCADO_PAGO_PUBLIC_KEY || '';
 const BRICK_CONTAINER_ID = 'mp-cardpayment-brick';
@@ -223,17 +224,12 @@ export default function Checkout() {
       <div className="glass-dark sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
           <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted hover:text-light transition-colors focus:outline-none">
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
+          <ChevronLeft className="w-4 h-4" />
             Voltar
           </button>
           <img src={logo} alt="RockFit Brasil" className="h-8 w-auto logo-light" />
           <div className="flex items-center gap-1.5 text-xs text-muted">
-            <svg className="w-3.5 h-3.5 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-            </svg>
+          <ShieldCheck className="w-3.5 h-3.5 text-green-400" />
             Pagamento seguro
           </div>
         </div>
@@ -281,7 +277,7 @@ export default function Checkout() {
               </ul>
 
               <div className="mt-6 flex items-center gap-2 text-xs text-muted/60">
-                <span>🔒</span>
+                <ShieldCheck className="w-4 h-4 text-brand shrink-0" />
                 <span>Pagamento processado pelo Mercado Pago</span>
               </div>
             </div>
@@ -375,9 +371,10 @@ export default function Checkout() {
               </div>
             )}
 
-            <p className="text-center text-xs text-muted/40 mt-4">
-              🔒 Dados protegidos por criptografia SSL · Processado pelo Mercado Pago
-            </p>
+          <p className="text-center text-xs text-muted/40 mt-4 flex items-center justify-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-brand shrink-0" />
+            <span>Dados protegidos por criptografia SSL · Processado pelo Mercado Pago</span>
+          </p>
           </div>
         </div>
       </div>
