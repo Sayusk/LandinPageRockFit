@@ -5,7 +5,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 const ACCESS_TOKEN = process.env.MERCADO_PAGO_ACCESS_TOKEN;
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+// Remove trailing path (/rest/v1, /rest/v1/) caso o env var já venha com ele
+const SUPABASE_URL = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/rest\/v1\/?$/, '');
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Valores validados no backend — não confiar no frontend para preço
@@ -102,13 +103,19 @@ export default async function handler(req, res) {
     const hasIdentification =
       identification?.type && identification?.number && String(identification.number).replace(/\D/g, '').length > 0;
 
+    // Detecta mismatch de ambiente: token TEST- precisa de ACCESS_TOKEN TEST-
+    const isSandboxToken = token.length === 32 && ACCESS_TOKEN?.startsWith('APP_USR');
+    if (isSandboxToken) {
+      console.warn('[create-subscription] Possível mismatch: token sandbox com access token de produção.');
+    }
+
     const mpPayload = {
       transaction_amount: plan.transactionAmount,
       token,
       description: plan.name,
       installments: Math.max(1, parseInt(installments, 10) || 1),
       payment_method_id: paymentMethodId,
-      ...(issuerId && { issuer_id: Number(issuerId) }),
+      // issuer_id omitido: já está embutido no token e pode causar internal_error
       payer: {
         email: payer.email,
         ...(payer.first_name && { first_name: payer.first_name }),
@@ -121,6 +128,7 @@ export default async function handler(req, res) {
       },
     };
 
+    console.log('[create-subscription] ACCESS_TOKEN prefix ->', ACCESS_TOKEN?.slice(0, 8));
     console.log('[create-subscription] payload ->', JSON.stringify(mpPayload));
 
     const mpRes = await fetch('https://api.mercadopago.com/v1/payments', {

@@ -101,8 +101,11 @@ export default function Checkout() {
                 theme: 'dark',
                 customVariables: {
                   baseColor: '#c3191f',
+                  baseColorFirstVariant: '#c3191f',
+                  baseColorSecondVariant: '#c3191f',
                   outlinePrimaryColor: '#c3191f',
-                  outlineSecondaryColor: '#3d3a38',
+                  outlineSecondaryColor: '#4a4544',
+                  inputBorderColor: '#4a4544',
                   buttonTextColor: '#ffffff',
                 },
               },
