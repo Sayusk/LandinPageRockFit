@@ -7,6 +7,7 @@ export const PLANS = [
     priceMonthly: 100,
     priceTotal: 100,
     durationMonths: 1,
+    maxInstallments: 2,
     highlighted: false,
     badge: null,
     features: [
@@ -26,6 +27,7 @@ export const PLANS = [
     priceMonthly: 85,
     priceTotal: 255,
     durationMonths: 3,
+    maxInstallments: 3,
     highlighted: false,
     badge: '15% OFF',
     features: [
@@ -46,6 +48,7 @@ export const PLANS = [
     priceMonthly: 75,
     priceTotal: 450,
     durationMonths: 6,
+    maxInstallments: 6,
     highlighted: true,
     badge: 'Mais escolhido',
     features: [

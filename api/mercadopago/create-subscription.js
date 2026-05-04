@@ -98,19 +98,30 @@ export default async function handler(req, res) {
     }
 
     // 2. Cobrar via /v1/payments (compatível com token do CardPayment Brick)
+    const identification = payer.identification;
+    const hasIdentification =
+      identification?.type && identification?.number && String(identification.number).replace(/\D/g, '').length > 0;
+
     const mpPayload = {
       transaction_amount: plan.transactionAmount,
       token,
       description: plan.name,
-      installments: Number(installments) || 1,
+      installments: Math.max(1, parseInt(installments, 10) || 1),
       payment_method_id: paymentMethodId,
-      issuer_id: issuerId ? Number(issuerId) : undefined,
+      ...(issuerId && { issuer_id: Number(issuerId) }),
       payer: {
         email: payer.email,
-        first_name: payer.first_name,
-        identification: payer.identification,
+        ...(payer.first_name && { first_name: payer.first_name }),
+        ...(hasIdentification && {
+          identification: {
+            type: identification.type,
+            number: String(identification.number).replace(/\D/g, ''),
+          },
+        }),
       },
     };
+
+    console.log('[create-subscription] payload ->', JSON.stringify(mpPayload));
 
     const mpRes = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
@@ -123,6 +134,7 @@ export default async function handler(req, res) {
     });
 
     const mpData = await mpRes.json();
+    console.log('[create-subscription] mp response ->', mpRes.status, JSON.stringify(mpData));
 
     // 3. Atualizar status no Supabase
     if (supabase && subscriptionId) {

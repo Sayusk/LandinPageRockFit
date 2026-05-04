@@ -94,7 +94,7 @@ export default function Checkout() {
                 excluded: ['debit_card', 'ticket', 'bank_transfer', 'atm', 'digital_currency', 'digital_wallet', 'prepaid_card'],
               },
               minInstallments: 1,
-              maxInstallments: plan.durationMonths > 1 ? plan.durationMonths : 1,
+              maxInstallments: plan.maxInstallments ?? 1,
             },
             visual: {
               style: {
@@ -102,6 +102,7 @@ export default function Checkout() {
                 customVariables: {
                   baseColor: '#c3191f',
                   outlinePrimaryColor: '#c3191f',
+                  outlineSecondaryColor: '#3d3a38',
                   buttonTextColor: '#ffffff',
                 },
               },

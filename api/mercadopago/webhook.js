@@ -123,31 +123,41 @@ export default async function handler(req, res) {
         }
       }
     } else if (eventType === 'payment') {
-      // Find subscription by MP preapproval id (preapproval_id on payment)
-      const preapprovalId = mpData.preapproval_id;
-      if (preapprovalId) {
-        const { data: sub } = await supabase
-          .from('client_subscriptions')
-          .select('id')
-          .eq('mercado_pago_preapproval_id', String(preapprovalId))
-          .single();
+      // Busca assinatura pelo payment id armazenado em mercado_pago_preapproval_id
+      // (campo reaproveitado para pagamentos avulsos) ou pelo preapproval_id se existir
+      const lookupId = String(mpData.preapproval_id || mpData.id || '');
+      const { data: sub } = lookupId
+        ? await supabase
+            .from('client_subscriptions')
+            .select('id')
+            .eq('mercado_pago_preapproval_id', lookupId)
+            .single()
+        : { data: null };
 
-        if (sub) {
-          await supabase.from('payment_events').insert({
-            subscription_id: sub.id,
-            mercado_pago_payment_id: String(mpData.id),
-            status: mpData.status,
-            status_detail: mpData.status_detail,
-            amount_cents: Math.round((mpData.transaction_amount || 0) * 100),
-            payload: mpData,
-          });
+      if (sub) {
+        // Atualiza status da assinatura conforme o pagamento
+        const isPaid = mpData.status === 'approved';
+        if (isPaid) {
+          await supabase
+            .from('client_subscriptions')
+            .update({ status: 'active', raw_response: mpData })
+            .eq('id', sub.id);
+        }
 
-          if (eventRow?.id) {
-            await supabase
-              .from('mercado_pago_webhook_events')
-              .update({ subscription_id: sub.id, processed: true })
-              .eq('id', eventRow.id);
-          }
+        await supabase.from('payment_events').insert({
+          subscription_id: sub.id,
+          mercado_pago_payment_id: String(mpData.id),
+          status: mpData.status,
+          status_detail: mpData.status_detail,
+          amount_cents: Math.round((mpData.transaction_amount || 0) * 100),
+          payload: mpData,
+        });
+
+        if (eventRow?.id) {
+          await supabase
+            .from('mercado_pago_webhook_events')
+            .update({ subscription_id: sub.id, processed: true })
+            .eq('id', eventRow.id);
         }
       }
     }
