@@ -1,13 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { CardPayment } from '@mercadopago/sdk-react';
 import { getPlanBySlug } from '../data/plans.js';
 import { createSubscription } from '../services/mercadoPagoService.js';
 import logo from '../assets/Rockfitlogo.png';
 
-// initMercadoPago é chamado em main.jsx para garantir que o script carregue
-// antes do usuário navegar para esta página.
 const publicKey = import.meta.env.VITE_MERCADO_PAGO_PUBLIC_KEY || '';
+const BRICK_CONTAINER_ID = 'mp-cardpayment-brick';
+
+const STATUSES = {
+  IDLE: 'idle',
+  PROCESSING: 'processing',
+  SUCCESS: 'success',
+  ERROR: 'error',
+};
 
 function CheckIcon() {
   return (
@@ -18,19 +23,8 @@ function CheckIcon() {
 }
 
 function formatPhone(value) {
-  return value
-    .replace(/\D/g, '')
-    .replace(/(\d{2})(\d)/, '($1) $2')
-    .replace(/(\d{5})(\d)/, '$1-$2')
-    .slice(0, 15);
+  return value.replace(/\D/g, '').replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 15);
 }
-
-const STATUSES = {
-  IDLE: 'idle',
-  PROCESSING: 'processing',
-  SUCCESS: 'success',
-  ERROR: 'error',
-};
 
 export default function Checkout() {
   const [searchParams] = useSearchParams();
@@ -40,71 +34,157 @@ export default function Checkout() {
 
   const [status, setStatus] = useState(STATUSES.IDLE);
   const [errorMsg, setErrorMsg] = useState('');
+  const [brickReady, setBrickReady] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '' });
 
-  // Aguarda window.MercadoPago estar disponível antes de montar o Brick.
-  // Sem esse check o Brick monta antes do script externo do MP terminar de
-  // carregar e lança "Card token service not found".
-  const [sdkReady, setSdkReady] = useState(() => typeof window !== 'undefined' && !!window.MercadoPago);
+  // Ref para acessar form atual dentro do callback do Brick sem stale closure
+  const formRef = useRef(form);
+  formRef.current = form;
 
-  useEffect(() => {
-    if (sdkReady) return;
-    let attempts = 0;
-    const timer = setInterval(() => {
-      attempts++;
-      if (window.MercadoPago) {
-        setSdkReady(true);
-        clearInterval(timer);
-      } else if (attempts >= 60) {
-        clearInterval(timer);
-        setStatus(STATUSES.ERROR);
-        setErrorMsg('Erro ao carregar o módulo de pagamento. Recarregue a página.');
-      }
-    }, 100);
-    return () => clearInterval(timer);
-  }, [sdkReady]);
+  const brickControllerRef = useRef(null);
 
   useEffect(() => {
     if (!plan) navigate('/?error=plan-not-found');
   }, [plan, navigate]);
 
+  useEffect(() => {
+    if (!plan || !publicKey) return;
+
+    let destroyed = false;
+
+    async function initBrick() {
+      // Aguarda window.MercadoPago estar disponível (script no <head>)
+      let attempts = 0;
+      while (!window.MercadoPago) {
+        await new Promise(r => setTimeout(r, 100));
+        attempts++;
+        if (attempts > 60) {
+          if (!destroyed) {
+            setStatus(STATUSES.ERROR);
+            setErrorMsg('Erro ao carregar o módulo de pagamento. Recarregue a página.');
+          }
+          return;
+        }
+      }
+
+      if (destroyed) return;
+
+      // Destrói brick anterior se existir (evita "Context already exists")
+      if (brickControllerRef.current) {
+        try { await brickControllerRef.current.unmount(); } catch (_) {}
+        brickControllerRef.current = null;
+      }
+
+      // Limpa o container manualmente para garantir estado limpo
+      const container = document.getElementById(BRICK_CONTAINER_ID);
+      if (!container) return;
+      container.innerHTML = '';
+
+      try {
+        const mp = new window.MercadoPago(publicKey, { locale: 'pt-BR' });
+        const bricksBuilder = mp.bricks();
+
+        const controller = await bricksBuilder.create('cardPayment', BRICK_CONTAINER_ID, {
+          initialization: {
+            amount: plan.priceTotal,
+          },
+          customization: {
+            paymentMethods: {
+              types: {
+                excluded: ['debit_card', 'ticket', 'bank_transfer', 'atm', 'digital_currency', 'digital_wallet', 'prepaid_card'],
+              },
+              minInstallments: 1,
+              maxInstallments: plan.durationMonths > 1 ? plan.durationMonths : 1,
+            },
+            visual: {
+              style: {
+                theme: 'dark',
+                customVariables: {
+                  baseColor: '#c3191f',
+                  outlinePrimaryColor: '#c3191f',
+                  buttonTextColor: '#ffffff',
+                },
+              },
+              hideFormTitle: true,
+            },
+          },
+          callbacks: {
+            onReady: () => {
+              if (!destroyed) setBrickReady(true);
+            },
+            onSubmit: async (cardFormData) => {
+              if (destroyed) return;
+
+              const currentForm = formRef.current;
+
+              if (!currentForm.name.trim() || !currentForm.email.trim()) {
+                setErrorMsg('Preencha seu nome e e-mail antes de pagar.');
+                setStatus(STATUSES.ERROR);
+                return;
+              }
+
+              setStatus(STATUSES.PROCESSING);
+              setErrorMsg('');
+
+              try {
+                await createSubscription({
+                  planSlug: plan.slug,
+                  token: cardFormData.token,
+                  installments: cardFormData.installments,
+                  paymentMethodId: cardFormData.payment_method_id,
+                  issuerId: cardFormData.issuer_id,
+                  payer: {
+                    email: currentForm.email,
+                    identification: cardFormData.payer?.identification,
+                    first_name: currentForm.name,
+                    phone: currentForm.phone,
+                  },
+                  customerData: {
+                    name: currentForm.name,
+                    email: currentForm.email,
+                    phone: currentForm.phone,
+                  },
+                });
+                if (!destroyed) setStatus(STATUSES.SUCCESS);
+              } catch (err) {
+                if (!destroyed) {
+                  setStatus(STATUSES.ERROR);
+                  setErrorMsg(err.message || 'Erro ao processar pagamento. Tente novamente.');
+                }
+              }
+            },
+            onError: (err) => {
+              if (destroyed) return;
+              console.error('[MP Brick]', err);
+              setStatus(STATUSES.ERROR);
+              setErrorMsg('Erro no formulário de pagamento. Verifique os dados do cartão e tente novamente.');
+            },
+          },
+        });
+
+        if (!destroyed) brickControllerRef.current = controller;
+      } catch (err) {
+        if (!destroyed) {
+          console.error('[MP Brick init]', err);
+          setStatus(STATUSES.ERROR);
+          setErrorMsg('Erro ao inicializar o formulário de pagamento. Recarregue a página.');
+        }
+      }
+    }
+
+    initBrick();
+
+    return () => {
+      destroyed = true;
+      if (brickControllerRef.current) {
+        try { brickControllerRef.current.unmount(); } catch (_) {}
+        brickControllerRef.current = null;
+      }
+      setBrickReady(false);
+    };
+  }, [plan, publicKey]);
+
   if (!plan) return null;
-
-  async function handleCardSubmit(formData) {
-    if (!form.name.trim() || !form.email.trim()) {
-      setErrorMsg('Preencha seu nome e e-mail antes de pagar.');
-      setStatus(STATUSES.ERROR);
-      return;
-    }
-
-    setStatus(STATUSES.PROCESSING);
-    setErrorMsg('');
-
-    try {
-      await createSubscription({
-        planSlug: plan.slug,
-        token: formData.token,
-        installments: formData.installments,
-        paymentMethodId: formData.payment_method_id,
-        issuerId: formData.issuer_id,
-        payer: {
-          email: form.email,
-          identification: formData.payer?.identification,
-          first_name: form.name,
-          phone: form.phone,
-        },
-        customerData: {
-          name: form.name,
-          email: form.email,
-          phone: form.phone,
-        },
-      });
-      setStatus(STATUSES.SUCCESS);
-    } catch (err) {
-      setStatus(STATUSES.ERROR);
-      setErrorMsg(err.message || 'Erro ao processar pagamento. Tente novamente.');
-    }
-  }
 
   // --- SUCCESS ---
   if (status === STATUSES.SUCCESS) {
@@ -118,7 +198,7 @@ export default function Checkout() {
           </div>
           <h1 className="text-2xl font-black text-gradient mb-3">Assinatura confirmada!</h1>
           <p className="text-muted text-sm mb-8">
-            Em breve você receberá as instruções por e-mail. Fique à vontade para entrar em contato via WhatsApp para iniciar seu acompanhamento.
+            Em breve você receberá as instruções por e-mail. Entre em contato via WhatsApp para iniciar seu acompanhamento.
           </p>
           <a
             href="https://wa.me/5519996209656?text=Ol%C3%A1%2C%20acabei%20de%20assinar%20o%20plano%20na%20RockFit%20Brasil!"
@@ -138,10 +218,7 @@ export default function Checkout() {
       {/* Top bar */}
       <div className="glass-dark sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-sm text-muted hover:text-light transition-colors focus:outline-none"
-          >
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted hover:text-light transition-colors focus:outline-none">
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="15 18 9 12 15 6" />
             </svg>
@@ -161,7 +238,7 @@ export default function Checkout() {
       <div className="max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-16">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-10 lg:gap-16">
 
-          {/* LEFT: Plan summary */}
+          {/* LEFT: Resumo do plano */}
           <div className="lg:col-span-2 order-2 lg:order-1">
             <div className="card-dark p-7 sticky top-28">
               <div className="text-xs font-semibold tracking-widest uppercase text-muted mb-4">Resumo do plano</div>
@@ -194,8 +271,7 @@ export default function Checkout() {
               <ul className="flex flex-col gap-3">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-2.5 text-xs text-light/70">
-                    <CheckIcon />
-                    {f}
+                    <CheckIcon />{f}
                   </li>
                 ))}
               </ul>
@@ -207,20 +283,19 @@ export default function Checkout() {
             </div>
           </div>
 
-          {/* RIGHT: Payment form */}
+          {/* RIGHT: Formulário */}
           <div className="lg:col-span-3 order-1 lg:order-2">
             <h1 className="text-2xl md:text-3xl font-black text-gradient mb-2">Finalizar assinatura</h1>
             <p className="text-sm text-muted mb-8">Preencha seus dados para ativar o plano {plan.name}.</p>
 
-            {/* Sem chave pública configurada */}
+            {/* Aviso sem chave pública */}
             {!publicKey && (
               <div className="mb-6 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-xs text-yellow-300">
-                ⚠️ Chave pública do Mercado Pago não configurada.
-                Configure <code className="font-mono">VITE_MERCADO_PAGO_PUBLIC_KEY</code> no ambiente.
+                ⚠️ Configure <code className="font-mono">VITE_MERCADO_PAGO_PUBLIC_KEY</code> no ambiente.
               </div>
             )}
 
-            {/* Error banner */}
+            {/* Banner de erro */}
             {status === STATUSES.ERROR && errorMsg && (
               <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-300">
                 {errorMsg}
@@ -266,74 +341,37 @@ export default function Checkout() {
               </div>
             </div>
 
-            {/* Brick oficial do Mercado Pago — somente cartão de crédito */}
+            {/* Container do Brick — sempre no DOM para o SDK montar */}
             {publicKey && (
-              <div className="mb-7">
+              <div className="mb-4">
                 <h2 className="text-xs font-semibold tracking-widest uppercase text-muted mb-4">Dados do cartão</h2>
 
-                {/* Aguarda SDK carregar antes de montar o Brick */}
-                {!sdkReady && (
+                {/* Spinner enquanto Brick carrega */}
+                {!brickReady && status !== STATUSES.ERROR && (
                   <div className="flex items-center gap-3 text-sm text-muted py-8">
                     <div className="w-4 h-4 border-2 border-brand/30 border-t-brand rounded-full animate-spin" />
                     Carregando formulário de pagamento...
                   </div>
                 )}
 
-                {/* Overlay de processamento */}
-                <div className={`relative ${!sdkReady ? 'hidden' : ''}`}>
+                {/* Overlay de processamento sobre o Brick */}
+                <div className="relative">
                   {status === STATUSES.PROCESSING && (
-                    <div
-                      className="absolute inset-0 z-10 flex items-center justify-center rounded-xl"
-                      style={{ background: 'rgba(35,32,30,0.80)', backdropFilter: 'blur(4px)' }}
-                    >
+                    <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl"
+                      style={{ background: 'rgba(35,32,30,0.85)', backdropFilter: 'blur(4px)' }}>
                       <div className="flex items-center gap-3 text-sm text-muted">
                         <div className="w-4 h-4 border-2 border-brand/30 border-t-brand rounded-full animate-spin" />
                         Processando pagamento...
                       </div>
                     </div>
                   )}
-
-                  {sdkReady && <CardPayment
-                    initialization={{
-                      amount: plan.priceTotal,
-                      preferenceId: undefined,
-                    }}
-                    customization={{
-                      paymentMethods: {
-                        // Somente cartão de crédito
-                        types: { excluded: ['debit_card', 'ticket', 'bank_transfer', 'atm', 'digital_currency', 'digital_wallet', 'prepaid_card'] },
-                        minInstallments: 1,
-                        maxInstallments: plan.durationMonths > 1 ? plan.durationMonths : 1,
-                      },
-                      visual: {
-                        style: {
-                          customVariables: {
-                            // Tema escuro para o Brick
-                            baseColor: '#c3191f',
-                            baseColorSecondVariant: '#a01217',
-                            outlinePrimaryColor: '#c3191f',
-                            buttonTextColor: '#ffffff',
-                            fontSizeSmall: '12px',
-                            fontSizeMedium: '14px',
-                          },
-                          theme: 'dark',
-                        },
-                        hideFormTitle: true,
-                        hidePaymentButton: false,
-                      },
-                    }}
-                    onSubmit={handleCardSubmit}
-                    onError={(err) => {
-                      console.error('[MP Brick error]', err);
-                      setStatus(STATUSES.ERROR);
-                      setErrorMsg('Erro no formulário de pagamento. Verifique os dados do cartão.');
-                    }}
-                  />}
+                  {/* O Brick do MP é montado aqui via bricksBuilder.create() */}
+                  <div id={BRICK_CONTAINER_ID} />
                 </div>
               </div>
             )}
 
-            <p className="text-center text-xs text-muted/40 mt-2">
+            <p className="text-center text-xs text-muted/40 mt-4">
               🔒 Dados protegidos por criptografia SSL · Processado pelo Mercado Pago
             </p>
           </div>
