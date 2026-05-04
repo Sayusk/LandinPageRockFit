@@ -115,7 +115,8 @@ export default async function handler(req, res) {
       description: plan.name,
       installments: Math.max(1, parseInt(installments, 10) || 1),
       payment_method_id: paymentMethodId,
-      // issuer_id omitido: já está embutido no token e pode causar internal_error
+      ...(issuerId && { issuer_id: Number(issuerId) }),
+      binary_mode: true,
       payer: {
         email: payer.email,
         ...(hasIdentification && {
