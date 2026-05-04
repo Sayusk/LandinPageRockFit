@@ -13,17 +13,17 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const PLANS = {
   mensal: {
     slug: 'mensal',
-    name: 'Plano Mensal — RockFit Brasil',
+    name: 'RockFit Brasil - Plano Mensal',
     transactionAmount: 100.0,
   },
   trimestral: {
     slug: 'trimestral',
-    name: 'Plano Trimestral — RockFit Brasil',
+    name: 'RockFit Brasil - Plano Trimestral',
     transactionAmount: 255.0,
   },
   semestral: {
     slug: 'semestral',
-    name: 'Plano Semestral — RockFit Brasil',
+    name: 'RockFit Brasil - Plano Semestral',
     transactionAmount: 450.0,
   },
 };
@@ -118,7 +118,6 @@ export default async function handler(req, res) {
       // issuer_id omitido: já está embutido no token e pode causar internal_error
       payer: {
         email: payer.email,
-        ...(payer.first_name && { first_name: payer.first_name }),
         ...(hasIdentification && {
           identification: {
             type: identification.type,
