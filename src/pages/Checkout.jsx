@@ -1,17 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { initMercadoPago, CardPayment } from '@mercadopago/sdk-react';
 import { getPlanBySlug } from '../data/plans.js';
-import { createSubscription, loadMercadoPagoSDK } from '../services/mercadoPagoService.js';
+import { createSubscription } from '../services/mercadoPagoService.js';
 import logo from '../assets/Rockfitlogo.png';
 
-const STATUSES = {
-  IDLE: 'idle',
-  LOADING_SDK: 'loading_sdk',
-  READY: 'ready',
-  PROCESSING: 'processing',
-  SUCCESS: 'success',
-  ERROR: 'error',
-};
+const publicKey = import.meta.env.VITE_MERCADO_PAGO_PUBLIC_KEY || '';
+
+if (publicKey) {
+  initMercadoPago(publicKey, { locale: 'pt-BR' });
+}
 
 function CheckIcon() {
   return (
@@ -19,15 +17,6 @@ function CheckIcon() {
       <polyline points="20 6 9 17 4 12" />
     </svg>
   );
-}
-
-function formatCPF(value) {
-  return value
-    .replace(/\D/g, '')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
-    .slice(0, 14);
 }
 
 function formatPhone(value) {
@@ -38,6 +27,13 @@ function formatPhone(value) {
     .slice(0, 15);
 }
 
+const STATUSES = {
+  IDLE: 'idle',
+  PROCESSING: 'processing',
+  SUCCESS: 'success',
+  ERROR: 'error',
+};
+
 export default function Checkout() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -46,163 +42,52 @@ export default function Checkout() {
 
   const [status, setStatus] = useState(STATUSES.IDLE);
   const [errorMsg, setErrorMsg] = useState('');
-  const cardFormRef = useRef(null);
-  const timeoutRef = useRef(null);
-  // Ref para evitar stale closure do form no callback do MP
-  const formRef = useRef({ name: '', email: '', phone: '', cpf: '' });
 
-  const [form, setForm] = useState({ name: '', email: '', phone: '', cpf: '' });
-
-  // Mantém formRef sempre atualizado sem depender do useEffect do MP
-  formRef.current = form;
-
-  const publicKey = import.meta.env.VITE_MERCADO_PAGO_PUBLIC_KEY || '';
+  const [form, setForm] = useState({ name: '', email: '', phone: '' });
 
   useEffect(() => {
-    if (!plan) {
-      navigate('/?error=plan-not-found');
-    }
+    if (!plan) navigate('/?error=plan-not-found');
   }, [plan, navigate]);
-
-  useEffect(() => {
-    if (!plan) return;
-
-    if (!publicKey) {
-      setStatus(STATUSES.ERROR);
-      setErrorMsg('Chave pública do Mercado Pago não configurada. Configure VITE_MERCADO_PAGO_PUBLIC_KEY no Vercel.');
-      return;
-    }
-
-    let cancelled = false;
-    setStatus(STATUSES.LOADING_SDK);
-
-    // Garante cleanup completo antes de qualquer nova init
-    function unmountExisting() {
-      if (cardFormRef.current) {
-        try { cardFormRef.current.unmount(); } catch (_) {}
-        cardFormRef.current = null;
-      }
-    }
-
-    loadMercadoPagoSDK()
-      .then((MP) => {
-        if (cancelled) return;
-        if (!MP) throw new Error('SDK do Mercado Pago não carregou corretamente.');
-
-        unmountExisting();
-
-        const mp = new MP(publicKey, { locale: 'pt-BR' });
-
-        // setTimeout garante que o React já commitou os elementos no DOM
-        timeoutRef.current = setTimeout(() => {
-          if (cancelled) return;
-          try {
-            const cardForm = mp.cardForm({
-              amount: String(plan.priceTotal),
-              iframe: true,
-              form: {
-                id: 'mp-card-form',
-                cardNumber:         { id: 'mp-cardNumber',         placeholder: '0000 0000 0000 0000' },
-                expirationDate:     { id: 'mp-expirationDate',     placeholder: 'MM/AA' },
-                securityCode:       { id: 'mp-securityCode',       placeholder: 'CVV' },
-                cardholderName:     { id: 'mp-cardholderName',     placeholder: 'Nome no cartão' },
-                installments:       { id: 'mp-installments' },
-                identificationType: { id: 'mp-identificationType' },
-                identificationNumber: { id: 'mp-identificationNumber', placeholder: '000.000.000-00' },
-              },
-              callbacks: {
-                onFormMounted: (err) => {
-                  if (cancelled) return;
-                  if (err) {
-                    setStatus(STATUSES.ERROR);
-                    setErrorMsg('Erro ao montar formulário de pagamento.');
-                    return;
-                  }
-                  setStatus(STATUSES.READY);
-                },
-                onSubmit: async (event) => {
-                  event.preventDefault();
-                  if (cancelled) return;
-                  setStatus(STATUSES.PROCESSING);
-                  setErrorMsg('');
-
-                  const {
-                    paymentMethodId,
-                    issuerId,
-                    token,
-                    installments,
-                    identificationNumber,
-                    identificationType,
-                  } = cardForm.getCardFormData();
-
-                  // Usa formRef para garantir valores atuais (sem stale closure)
-                  const currentForm = formRef.current;
-
-                  try {
-                    await createSubscription({
-                      planSlug: plan.slug,
-                      token,
-                      installments,
-                      paymentMethodId,
-                      issuerId,
-                      payer: {
-                        email: currentForm.email,
-                        identification: { type: identificationType, number: identificationNumber },
-                        first_name: currentForm.name,
-                        phone: currentForm.phone,
-                      },
-                      customerData: {
-                        name: currentForm.name,
-                        email: currentForm.email,
-                        phone: currentForm.phone,
-                        cpf: currentForm.cpf,
-                      },
-                    });
-                    if (!cancelled) setStatus(STATUSES.SUCCESS);
-                  } catch (err) {
-                    if (!cancelled) {
-                      setStatus(STATUSES.ERROR);
-                      setErrorMsg(err.message || 'Erro ao processar pagamento. Tente novamente.');
-                    }
-                  }
-                },
-                onFetching: () => {},
-              },
-            });
-
-            if (!cancelled) cardFormRef.current = cardForm;
-          } catch (err) {
-            if (!cancelled) {
-              setStatus(STATUSES.ERROR);
-              setErrorMsg('Erro ao inicializar o formulário de pagamento. Recarregue a página.');
-            }
-          }
-        }, 300);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setStatus(STATUSES.ERROR);
-        setErrorMsg(
-          err?.message?.includes('Falha ao carregar')
-            ? 'Não foi possível carregar o módulo de pagamento. Verifique sua conexão e tente novamente.'
-            : 'Erro ao carregar o módulo de pagamento. Recarregue a página e tente novamente.'
-        );
-      });
-
-    return () => {
-      cancelled = true;
-      // Cancela o setTimeout antes que ele dispare
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-      unmountExisting();
-    };
-  }, [plan, publicKey]);
 
   if (!plan) return null;
 
-  // --- SUCCESS STATE ---
+  async function handleCardSubmit(formData) {
+    if (!form.name.trim() || !form.email.trim()) {
+      setErrorMsg('Preencha seu nome e e-mail antes de pagar.');
+      setStatus(STATUSES.ERROR);
+      return;
+    }
+
+    setStatus(STATUSES.PROCESSING);
+    setErrorMsg('');
+
+    try {
+      await createSubscription({
+        planSlug: plan.slug,
+        token: formData.token,
+        installments: formData.installments,
+        paymentMethodId: formData.payment_method_id,
+        issuerId: formData.issuer_id,
+        payer: {
+          email: form.email,
+          identification: formData.payer?.identification,
+          first_name: form.name,
+          phone: form.phone,
+        },
+        customerData: {
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+        },
+      });
+      setStatus(STATUSES.SUCCESS);
+    } catch (err) {
+      setStatus(STATUSES.ERROR);
+      setErrorMsg(err.message || 'Erro ao processar pagamento. Tente novamente.');
+    }
+  }
+
+  // --- SUCCESS ---
   if (status === STATUSES.SUCCESS) {
     return (
       <div className="min-h-screen bg-dark flex items-center justify-center px-5">
@@ -214,7 +99,7 @@ export default function Checkout() {
           </div>
           <h1 className="text-2xl font-black text-gradient mb-3">Assinatura confirmada!</h1>
           <p className="text-muted text-sm mb-8">
-            Em breve você receberá as instruções por e-mail. Fique à vontade para entrar em contato via WhatsApp para dar início ao seu acompanhamento.
+            Em breve você receberá as instruções por e-mail. Fique à vontade para entrar em contato via WhatsApp para iniciar seu acompanhamento.
           </p>
           <a
             href="https://wa.me/5519996209656?text=Ol%C3%A1%2C%20acabei%20de%20assinar%20o%20plano%20na%20RockFit%20Brasil!"
@@ -229,14 +114,15 @@ export default function Checkout() {
     );
   }
 
-  const isLoading = status === STATUSES.LOADING_SDK || status === STATUSES.PROCESSING;
-
   return (
     <div className="min-h-screen bg-dark">
       {/* Top bar */}
       <div className="glass-dark sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted hover:text-light transition-colors focus:outline-none">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-sm text-muted hover:text-light transition-colors focus:outline-none"
+          >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="15 18 9 12 15 6" />
             </svg>
@@ -307,6 +193,14 @@ export default function Checkout() {
             <h1 className="text-2xl md:text-3xl font-black text-gradient mb-2">Finalizar assinatura</h1>
             <p className="text-sm text-muted mb-8">Preencha seus dados para ativar o plano {plan.name}.</p>
 
+            {/* Sem chave pública configurada */}
+            {!publicKey && (
+              <div className="mb-6 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-xs text-yellow-300">
+                ⚠️ Chave pública do Mercado Pago não configurada.
+                Configure <code className="font-mono">VITE_MERCADO_PAGO_PUBLIC_KEY</code> no ambiente.
+              </div>
+            )}
+
             {/* Error banner */}
             {status === STATUSES.ERROR && errorMsg && (
               <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-300">
@@ -314,126 +208,107 @@ export default function Checkout() {
               </div>
             )}
 
-
-<form id="mp-card-form">
-              {/* Personal data */}
-              <div className="mb-7">
-                <h2 className="text-xs font-semibold tracking-widest uppercase text-muted mb-4">Dados pessoais</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs text-muted mb-1.5">Nome completo *</label>
-                    <input
-                      type="text"
-                      required
-                      value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      placeholder="Seu nome completo"
-                      className="w-full bg-dark-3 border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-light placeholder-muted/50 focus:outline-none focus:border-brand/50 transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-muted mb-1.5">E-mail *</label>
-                    <input
-                      type="email"
-                      required
-                      value={form.email}
-                      onChange={(e) => setForm({ ...form, email: e.target.value })}
-                      placeholder="seu@email.com"
-                      className="w-full bg-dark-3 border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-light placeholder-muted/50 focus:outline-none focus:border-brand/50 transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-muted mb-1.5">Telefone</label>
-                    <input
-                      type="tel"
-                      value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: formatPhone(e.target.value) })}
-                      placeholder="(11) 99999-9999"
-                      className="w-full bg-dark-3 border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-light placeholder-muted/50 focus:outline-none focus:border-brand/50 transition-colors"
-                    />
-                  </div>
+            {/* Dados pessoais */}
+            <div className="mb-7">
+              <h2 className="text-xs font-semibold tracking-widest uppercase text-muted mb-4">Dados pessoais</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs text-muted mb-1.5">Nome completo *</label>
+                  <input
+                    type="text"
+                    required
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="Seu nome completo"
+                    className="w-full bg-dark-2 border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-light placeholder-muted/40 focus:outline-none focus:border-brand/50 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted mb-1.5">E-mail *</label>
+                  <input
+                    type="email"
+                    required
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    placeholder="seu@email.com"
+                    className="w-full bg-dark-2 border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-light placeholder-muted/40 focus:outline-none focus:border-brand/50 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted mb-1.5">Telefone</label>
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: formatPhone(e.target.value) })}
+                    placeholder="(11) 99999-9999"
+                    className="w-full bg-dark-2 border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-light placeholder-muted/40 focus:outline-none focus:border-brand/50 transition-colors"
+                  />
                 </div>
               </div>
+            </div>
 
-              {/* Card data (MP iframes) */}
+            {/* Brick oficial do Mercado Pago — somente cartão de crédito */}
+            {publicKey && (
               <div className="mb-7">
                 <h2 className="text-xs font-semibold tracking-widest uppercase text-muted mb-4">Dados do cartão</h2>
 
-                {/* Os campos MP devem estar SEMPRE no DOM — o SDK anexa listeners
-                    diretamente nos elementos. Usar h-0 ou display:none quebra a init.
-                    O overlay de loading fica posicionado em cima sem remover os elementos. */}
+                {/* Overlay de processamento */}
                 <div className="relative">
-                  {status === STATUSES.LOADING_SDK && (
-                    <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl"
-                      style={{ background: 'rgba(35,32,30,0.75)', backdropFilter: 'blur(4px)' }}>
+                  {status === STATUSES.PROCESSING && (
+                    <div
+                      className="absolute inset-0 z-10 flex items-center justify-center rounded-xl"
+                      style={{ background: 'rgba(35,32,30,0.80)', backdropFilter: 'blur(4px)' }}
+                    >
                       <div className="flex items-center gap-3 text-sm text-muted">
                         <div className="w-4 h-4 border-2 border-brand/30 border-t-brand rounded-full animate-spin" />
-                        Carregando formulário de pagamento...
+                        Processando pagamento...
                       </div>
                     </div>
                   )}
 
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs text-muted mb-1.5">Nome no cartão</label>
-                    <div id="mp-cardholderName" className="w-full bg-dark-3 border border-white/[0.08] rounded-xl px-4 py-3 text-sm min-h-[46px]" />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-muted mb-1.5">Número do cartão</label>
-                    <div id="mp-cardNumber" className="w-full bg-dark-3 border border-white/[0.08] rounded-xl px-4 py-3 text-sm min-h-[46px]" />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs text-muted mb-1.5">Validade</label>
-                      <div id="mp-expirationDate" className="w-full bg-dark-3 border border-white/[0.08] rounded-xl px-4 py-3 text-sm min-h-[46px]" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-muted mb-1.5">CVV</label>
-                      <div id="mp-securityCode" className="w-full bg-dark-3 border border-white/[0.08] rounded-xl px-4 py-3 text-sm min-h-[46px]" />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs text-muted mb-1.5">Tipo de documento</label>
-                      <div id="mp-identificationType" className="w-full bg-dark-3 border border-white/[0.08] rounded-xl px-4 py-3 text-sm min-h-[46px]" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-muted mb-1.5">CPF</label>
-                      <div id="mp-identificationNumber" className="w-full bg-dark-3 border border-white/[0.08] rounded-xl px-4 py-3 text-sm min-h-[46px]" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-muted mb-1.5">Parcelas</label>
-                    <div id="mp-installments" className="w-full bg-dark-3 border border-white/[0.08] rounded-xl px-4 py-3 text-sm min-h-[46px]" />
-                  </div>
+                  <CardPayment
+                    initialization={{
+                      amount: plan.priceTotal,
+                      preferenceId: undefined,
+                    }}
+                    customization={{
+                      paymentMethods: {
+                        // Somente cartão de crédito
+                        types: { excluded: ['debit_card', 'ticket', 'bank_transfer', 'atm', 'digital_currency', 'digital_wallet', 'prepaid_card'] },
+                        minInstallments: 1,
+                        maxInstallments: plan.durationMonths > 1 ? plan.durationMonths : 1,
+                      },
+                      visual: {
+                        style: {
+                          customVariables: {
+                            // Tema escuro para o Brick
+                            baseColor: '#c3191f',
+                            baseColorSecondVariant: '#a01217',
+                            outlinePrimaryColor: '#c3191f',
+                            buttonTextColor: '#ffffff',
+                            fontSizeSmall: '12px',
+                            fontSizeMedium: '14px',
+                          },
+                          theme: 'dark',
+                        },
+                        hideFormTitle: true,
+                        hidePaymentButton: false,
+                      },
+                    }}
+                    onSubmit={handleCardSubmit}
+                    onError={(err) => {
+                      console.error('[MP Brick error]', err);
+                      setStatus(STATUSES.ERROR);
+                      setErrorMsg('Erro no formulário de pagamento. Verifique os dados do cartão.');
+                    }}
+                  />
                 </div>
-                </div>{/* fim do relative wrapper */}
               </div>
+            )}
 
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={isLoading || status !== STATUSES.READY}
-                className="btn-primary w-full justify-center py-4 text-base disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none"
-              >
-                {status === STATUSES.PROCESSING ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Processando...
-                  </>
-                ) : (
-                  <>Assinar Plano {plan.name} — R$ {plan.priceMonthly}/mês →</>
-                )}
-              </button>
-
-              <p className="text-center text-xs text-muted/50 mt-4">
-                🔒 Dados protegidos por criptografia SSL · Processado pelo Mercado Pago
-              </p>
-            </form>
+            <p className="text-center text-xs text-muted/40 mt-2">
+              🔒 Dados protegidos por criptografia SSL · Processado pelo Mercado Pago
+            </p>
           </div>
         </div>
       </div>
