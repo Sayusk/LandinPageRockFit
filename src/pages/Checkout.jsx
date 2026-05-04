@@ -67,14 +67,25 @@ export default function Checkout() {
 
   // Load MP SDK and mount CardForm
   useEffect(() => {
-    if (!plan || !publicKey) return;
+    if (!plan) return;
 
+    if (!publicKey) {
+      setStatus(STATUSES.ERROR);
+      setErrorMsg('Chave pública do Mercado Pago não configurada. Configure VITE_MERCADO_PAGO_PUBLIC_KEY no Vercel.');
+      return;
+    }
+
+    let cancelled = false;
     setStatus(STATUSES.LOADING_SDK);
 
     loadMercadoPagoSDK()
       .then((MP) => {
+        if (cancelled) return;
+
+        if (!MP) throw new Error('SDK do Mercado Pago não carregou corretamente.');
+
         const mp = new MP(publicKey, { locale: 'pt-BR' });
-        setMpInstance(mp);
+        if (!cancelled) setMpInstance(mp);
 
         const cardForm = mp.cardForm({
           amount: String(plan.priceTotal),
@@ -92,6 +103,7 @@ export default function Checkout() {
           },
           callbacks: {
             onFormMounted: (err) => {
+              if (cancelled) return;
               if (err) {
                 setStatus(STATUSES.ERROR);
                 setErrorMsg('Erro ao montar formulário de pagamento.');
@@ -101,6 +113,7 @@ export default function Checkout() {
             },
             onSubmit: async (event) => {
               event.preventDefault();
+              if (cancelled) return;
               setStatus(STATUSES.PROCESSING);
               setErrorMsg('');
 
@@ -134,27 +147,34 @@ export default function Checkout() {
                     cpf: form.cpf,
                   },
                 });
-                setStatus(STATUSES.SUCCESS);
+                if (!cancelled) setStatus(STATUSES.SUCCESS);
               } catch (err) {
-                setStatus(STATUSES.ERROR);
-                setErrorMsg(err.message || 'Erro ao processar pagamento. Tente novamente.');
+                if (!cancelled) {
+                  setStatus(STATUSES.ERROR);
+                  setErrorMsg(err.message || 'Erro ao processar pagamento. Tente novamente.');
+                }
               }
             },
-            onFetching: (resource) => {
-              // optional: show loading while fetching card token
-            },
+            onFetching: () => {},
           },
         });
 
-        cardFormRef.current = cardForm;
+        if (!cancelled) cardFormRef.current = cardForm;
       })
-      .catch(() => {
+      .catch((err) => {
+        if (cancelled) return;
         setStatus(STATUSES.ERROR);
-        setErrorMsg('Erro ao carregar módulo de pagamento. Verifique sua conexão.');
+        setErrorMsg(
+          err?.message?.includes('Falha ao carregar')
+            ? 'Não foi possível carregar o módulo de pagamento. Verifique sua conexão e tente novamente.'
+            : `Erro ao inicializar pagamento: ${err?.message || 'tente recarregar a página.'}`
+        );
       });
 
     return () => {
+      cancelled = true;
       cardFormRef.current?.unmount?.();
+      cardFormRef.current = null;
     };
   }, [plan, publicKey]);
 
@@ -272,14 +292,8 @@ export default function Checkout() {
               </div>
             )}
 
-            {/* MP warning if no public key */}
-            {!publicKey && (
-              <div className="mb-6 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-xs text-yellow-300">
-                ⚠️ Chave pública do Mercado Pago não configurada. Configure a variável <code>VITE_MERCADO_PAGO_PUBLIC_KEY</code> no ambiente.
-              </div>
-            )}
 
-            <form id="mp-card-form">
+<form id="mp-card-form">
               {/* Personal data */}
               <div className="mb-7">
                 <h2 className="text-xs font-semibold tracking-widest uppercase text-muted mb-4">Dados pessoais</h2>
