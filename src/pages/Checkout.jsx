@@ -46,26 +46,24 @@ export default function Checkout() {
 
   const [status, setStatus] = useState(STATUSES.IDLE);
   const [errorMsg, setErrorMsg] = useState('');
-  const [mpInstance, setMpInstance] = useState(null);
   const cardFormRef = useRef(null);
+  const timeoutRef = useRef(null);
+  // Ref para evitar stale closure do form no callback do MP
+  const formRef = useRef({ name: '', email: '', phone: '', cpf: '' });
 
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    cpf: '',
-  });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', cpf: '' });
+
+  // Mantém formRef sempre atualizado sem depender do useEffect do MP
+  formRef.current = form;
 
   const publicKey = import.meta.env.VITE_MERCADO_PAGO_PUBLIC_KEY || '';
 
-  // Redirect if plan not found
   useEffect(() => {
     if (!plan) {
       navigate('/?error=plan-not-found');
     }
   }, [plan, navigate]);
 
-  // Load MP SDK and mount CardForm
   useEffect(() => {
     if (!plan) return;
 
@@ -78,88 +76,108 @@ export default function Checkout() {
     let cancelled = false;
     setStatus(STATUSES.LOADING_SDK);
 
+    // Garante cleanup completo antes de qualquer nova init
+    function unmountExisting() {
+      if (cardFormRef.current) {
+        try { cardFormRef.current.unmount(); } catch (_) {}
+        cardFormRef.current = null;
+      }
+    }
+
     loadMercadoPagoSDK()
       .then((MP) => {
         if (cancelled) return;
-
         if (!MP) throw new Error('SDK do Mercado Pago não carregou corretamente.');
 
+        unmountExisting();
+
         const mp = new MP(publicKey, { locale: 'pt-BR' });
-        if (!cancelled) setMpInstance(mp);
 
-        const cardForm = mp.cardForm({
-          amount: String(plan.priceTotal),
-          iframe: true,
-          form: {
-            id: 'mp-card-form',
-            cardNumber: { id: 'mp-cardNumber', placeholder: '0000 0000 0000 0000' },
-            expirationDate: { id: 'mp-expirationDate', placeholder: 'MM/AA' },
-            securityCode: { id: 'mp-securityCode', placeholder: 'CVV' },
-            cardholderName: { id: 'mp-cardholderName', placeholder: 'Nome no cartão' },
-            installments: { id: 'mp-installments' },
-            identificationType: { id: 'mp-identificationType' },
-            identificationNumber: { id: 'mp-identificationNumber', placeholder: '000.000.000-00' },
-            cardholderEmail: { id: 'mp-cardholderEmail', placeholder: 'email@exemplo.com' },
-          },
-          callbacks: {
-            onFormMounted: (err) => {
-              if (cancelled) return;
-              if (err) {
-                setStatus(STATUSES.ERROR);
-                setErrorMsg('Erro ao montar formulário de pagamento.');
-                return;
-              }
-              setStatus(STATUSES.READY);
-            },
-            onSubmit: async (event) => {
-              event.preventDefault();
-              if (cancelled) return;
-              setStatus(STATUSES.PROCESSING);
-              setErrorMsg('');
+        // setTimeout garante que o React já commitou os elementos no DOM
+        timeoutRef.current = setTimeout(() => {
+          if (cancelled) return;
+          try {
+            const cardForm = mp.cardForm({
+              amount: String(plan.priceTotal),
+              iframe: true,
+              form: {
+                id: 'mp-card-form',
+                cardNumber:         { id: 'mp-cardNumber',         placeholder: '0000 0000 0000 0000' },
+                expirationDate:     { id: 'mp-expirationDate',     placeholder: 'MM/AA' },
+                securityCode:       { id: 'mp-securityCode',       placeholder: 'CVV' },
+                cardholderName:     { id: 'mp-cardholderName',     placeholder: 'Nome no cartão' },
+                installments:       { id: 'mp-installments' },
+                identificationType: { id: 'mp-identificationType' },
+                identificationNumber: { id: 'mp-identificationNumber', placeholder: '000.000.000-00' },
+              },
+              callbacks: {
+                onFormMounted: (err) => {
+                  if (cancelled) return;
+                  if (err) {
+                    setStatus(STATUSES.ERROR);
+                    setErrorMsg('Erro ao montar formulário de pagamento.');
+                    return;
+                  }
+                  setStatus(STATUSES.READY);
+                },
+                onSubmit: async (event) => {
+                  event.preventDefault();
+                  if (cancelled) return;
+                  setStatus(STATUSES.PROCESSING);
+                  setErrorMsg('');
 
-              const {
-                paymentMethodId,
-                issuerId,
-                cardholderEmail,
-                token,
-                installments,
-                identificationNumber,
-                identificationType,
-              } = cardForm.getCardFormData();
+                  const {
+                    paymentMethodId,
+                    issuerId,
+                    token,
+                    installments,
+                    identificationNumber,
+                    identificationType,
+                  } = cardForm.getCardFormData();
 
-              try {
-                await createSubscription({
-                  planSlug: plan.slug,
-                  token,
-                  installments,
-                  paymentMethodId,
-                  issuerId,
-                  payer: {
-                    email: cardholderEmail || form.email,
-                    identification: { type: identificationType, number: identificationNumber },
-                    first_name: form.name,
-                    phone: form.phone,
-                  },
-                  customerData: {
-                    name: form.name,
-                    email: form.email,
-                    phone: form.phone,
-                    cpf: form.cpf,
-                  },
-                });
-                if (!cancelled) setStatus(STATUSES.SUCCESS);
-              } catch (err) {
-                if (!cancelled) {
-                  setStatus(STATUSES.ERROR);
-                  setErrorMsg(err.message || 'Erro ao processar pagamento. Tente novamente.');
-                }
-              }
-            },
-            onFetching: () => {},
-          },
-        });
+                  // Usa formRef para garantir valores atuais (sem stale closure)
+                  const currentForm = formRef.current;
 
-        if (!cancelled) cardFormRef.current = cardForm;
+                  try {
+                    await createSubscription({
+                      planSlug: plan.slug,
+                      token,
+                      installments,
+                      paymentMethodId,
+                      issuerId,
+                      payer: {
+                        email: currentForm.email,
+                        identification: { type: identificationType, number: identificationNumber },
+                        first_name: currentForm.name,
+                        phone: currentForm.phone,
+                      },
+                      customerData: {
+                        name: currentForm.name,
+                        email: currentForm.email,
+                        phone: currentForm.phone,
+                        cpf: currentForm.cpf,
+                      },
+                    });
+                    if (!cancelled) setStatus(STATUSES.SUCCESS);
+                  } catch (err) {
+                    if (!cancelled) {
+                      setStatus(STATUSES.ERROR);
+                      setErrorMsg(err.message || 'Erro ao processar pagamento. Tente novamente.');
+                    }
+                  }
+                },
+                onFetching: () => {},
+              },
+            });
+
+            if (!cancelled) cardFormRef.current = cardForm;
+          } catch (err) {
+            if (!cancelled) {
+              setStatus(STATUSES.ERROR);
+              setErrorMsg('Erro ao inicializar o formulário de pagamento. Recarregue a página.');
+            }
+          }
+        }, 300);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -167,14 +185,18 @@ export default function Checkout() {
         setErrorMsg(
           err?.message?.includes('Falha ao carregar')
             ? 'Não foi possível carregar o módulo de pagamento. Verifique sua conexão e tente novamente.'
-            : `Erro ao inicializar pagamento: ${err?.message || 'tente recarregar a página.'}`
+            : 'Erro ao carregar o módulo de pagamento. Recarregue a página e tente novamente.'
         );
       });
 
     return () => {
       cancelled = true;
-      cardFormRef.current?.unmount?.();
-      cardFormRef.current = null;
+      // Cancela o setTimeout antes que ele dispare
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      unmountExisting();
     };
   }, [plan, publicKey]);
 
@@ -312,7 +334,6 @@ export default function Checkout() {
                   <div>
                     <label className="block text-xs text-muted mb-1.5">E-mail *</label>
                     <input
-                      id="mp-cardholderEmail"
                       type="email"
                       required
                       value={form.email}
@@ -338,14 +359,21 @@ export default function Checkout() {
               <div className="mb-7">
                 <h2 className="text-xs font-semibold tracking-widest uppercase text-muted mb-4">Dados do cartão</h2>
 
-                {isLoading && status === STATUSES.LOADING_SDK && (
-                  <div className="flex items-center gap-3 text-sm text-muted py-6">
-                    <div className="w-4 h-4 border-2 border-brand/30 border-t-brand rounded-full animate-spin" />
-                    Carregando formulário de pagamento...
-                  </div>
-                )}
+                {/* Os campos MP devem estar SEMPRE no DOM — o SDK anexa listeners
+                    diretamente nos elementos. Usar h-0 ou display:none quebra a init.
+                    O overlay de loading fica posicionado em cima sem remover os elementos. */}
+                <div className="relative">
+                  {status === STATUSES.LOADING_SDK && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl"
+                      style={{ background: 'rgba(35,32,30,0.75)', backdropFilter: 'blur(4px)' }}>
+                      <div className="flex items-center gap-3 text-sm text-muted">
+                        <div className="w-4 h-4 border-2 border-brand/30 border-t-brand rounded-full animate-spin" />
+                        Carregando formulário de pagamento...
+                      </div>
+                    </div>
+                  )}
 
-                <div className={`space-y-4 ${status === STATUSES.LOADING_SDK ? 'opacity-0 pointer-events-none h-0 overflow-hidden' : ''}`}>
+                <div className="space-y-4">
                   <div>
                     <label className="block text-xs text-muted mb-1.5">Nome no cartão</label>
                     <div id="mp-cardholderName" className="w-full bg-dark-3 border border-white/[0.08] rounded-xl px-4 py-3 text-sm min-h-[46px]" />
@@ -383,6 +411,7 @@ export default function Checkout() {
                     <div id="mp-installments" className="w-full bg-dark-3 border border-white/[0.08] rounded-xl px-4 py-3 text-sm min-h-[46px]" />
                   </div>
                 </div>
+                </div>{/* fim do relative wrapper */}
               </div>
 
               {/* Submit */}
