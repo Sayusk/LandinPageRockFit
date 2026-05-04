@@ -227,7 +227,7 @@ export default function Checkout() {
           <ChevronLeft className="w-4 h-4" />
             Voltar
           </button>
-          <img src={logo} alt="RockFit Brasil" className="h-8 w-auto logo-light" />
+          <img src={logo} alt="RockFit Brasil" className="h-20 w-auto logo-light" />
           <div className="flex items-center gap-1.5 text-xs text-muted">
           <ShieldCheck className="w-3.5 h-3.5 text-green-400" />
             Pagamento seguro

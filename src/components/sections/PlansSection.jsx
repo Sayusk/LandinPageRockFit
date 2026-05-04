@@ -26,6 +26,7 @@ export default function PlansSection() {
   return (
     <section id="planos" className="section-padding bg-dark-2">
       <div className="max-w-7xl mx-auto px-5 md:px-8">
+        
         {/* Header */}
         <div className="text-center mb-14">
           <span className="text-xs font-semibold tracking-widest uppercase text-brand mb-3 block">
@@ -54,6 +55,7 @@ export default function PlansSection() {
                   : 'border border-white/[0.08] hover:border-brand/30'
               } bg-dark-2`}
             >
+              
               {/* Badge */}
               {plan.badge && (
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-px">
@@ -70,6 +72,7 @@ export default function PlansSection() {
               )}
 
               <div className="p-7 pt-10 flex flex-col flex-1">
+                
                 {/* Plan name */}
                 <h3 className="text-xs font-semibold tracking-widest uppercase text-muted mb-1">
                   Plano
@@ -89,16 +92,21 @@ export default function PlansSection() {
                     <span className="text-sm text-muted mb-1">/mês</span>
                   </div>
 
-                  {plan.durationMonths > 1 && (
-                    <p className="text-xs text-muted mt-1">
-                      R$ {plan.priceTotal} à vista · {plan.durationMonths} meses
-                    </p>
-                  )}
+                  {plan.durationMonths > 1 ? (
+                    <>
+                      <p className="text-xs text-muted mt-1">
+                        R$ {plan.priceTotal} à vista · {plan.durationMonths} meses
+                      </p>
 
-                  {plan.badge && plan.badge.includes('OFF') && (
-                    <p className="text-xs text-brand font-semibold mt-1">
-                      Economia de {plan.badge}
-                    </p>
+                      {plan.savings && (
+                        <p className="text-xs text-brand font-semibold mt-1">
+                          Economia de {plan.savings}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    // 👇 garante alinhamento do <hr>
+                    <div className="h-8" />
                   )}
                 </div>
 

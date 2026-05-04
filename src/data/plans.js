@@ -10,6 +10,7 @@ export const PLANS = [
     maxInstallments: 2,
     highlighted: false,
     badge: null,
+    savings: null,
     features: [
       '1 mês de acompanhamento completo',
       'Treino personalizado',
@@ -30,6 +31,7 @@ export const PLANS = [
     maxInstallments: 3,
     highlighted: false,
     badge: '15% OFF',
+    savings: '15%',
     features: [
       '3 meses de acompanhamento contínuo',
       'Treino personalizado e progressivo',
@@ -51,6 +53,7 @@ export const PLANS = [
     maxInstallments: 6,
     highlighted: true,
     badge: 'Mais escolhido',
+    savings: '25%',
     features: [
       '6 meses de acompanhamento premium',
       'Treino personalizado e evolutivo',

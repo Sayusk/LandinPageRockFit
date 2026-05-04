@@ -67,7 +67,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="lg:col-span-2">
             <button onClick={() => handleNavClick('#inicio')} className="mb-4">
-              <img src={logo} alt="RockFit Brasil" className="h-15 w-auto" />
+              <img src={logo} alt="RockFit Brasil" className="h-20 w-auto" />
             </button>
 
             <p className="text-muted text-sm max-w-xs mb-5">
