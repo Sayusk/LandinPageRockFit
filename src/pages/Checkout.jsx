@@ -1,17 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { initMercadoPago, CardPayment } from '@mercadopago/sdk-react';
+import { CardPayment } from '@mercadopago/sdk-react';
 import { getPlanBySlug } from '../data/plans.js';
 import { createSubscription } from '../services/mercadoPagoService.js';
 import logo from '../assets/Rockfitlogo.png';
 
+// initMercadoPago é chamado em main.jsx para garantir que o script carregue
+// antes do usuário navegar para esta página.
 const publicKey = import.meta.env.VITE_MERCADO_PAGO_PUBLIC_KEY || '';
-
-// Guard para garantir init única mesmo com HMR no Vite
-if (publicKey && !window.__mpInitialized) {
-  initMercadoPago(publicKey, { locale: 'pt-BR' });
-  window.__mpInitialized = true;
-}
 
 function CheckIcon() {
   return (
