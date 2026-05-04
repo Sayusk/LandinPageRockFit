@@ -1,37 +1,36 @@
-import React from "react";
-import "./App.css";
-import "./components/Section.css";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Header from './components/layout/Header.jsx';
+import Footer from './components/layout/Footer.jsx';
+import WhatsAppButton from './components/WhatsAppButton.jsx';
+import Home from './pages/Home.jsx';
+import Checkout from './pages/Checkout.jsx';
+import AdminAlunos from './pages/admin/Alunos.jsx';
 
-import HeroSection from "./components/HeroSection";
-import ConsultoriaSection from "./components/ConsultoriaSection";
-import PlanosSection from "./components/PlanosSection";
-import FAQSection from "./components/FAQSection";
-import Footer from "./components/Footer";
-import WhatsAppButton from "./components/WhatsAppButton";
-
-import Checkout from "./pages/Checkout";
-
-// Página principal (sua landing)
-const Home = () => {
+function Layout({ children }) {
   return (
     <>
-      <HeroSection />
-      <ConsultoriaSection />
-      <PlanosSection />
-      <FAQSection />
+      <Header />
+      {children}
       <Footer />
       <WhatsAppButton />
     </>
   );
-};
+}
 
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route
+          path="/"
+          element={
+            <Layout>
+              <Home />
+            </Layout>
+          }
+        />
         <Route path="/checkout" element={<Checkout />} />
+        <Route path="/admin/alunos" element={<AdminAlunos />} />
       </Routes>
     </Router>
   );
