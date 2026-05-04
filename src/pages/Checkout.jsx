@@ -40,8 +40,29 @@ export default function Checkout() {
 
   const [status, setStatus] = useState(STATUSES.IDLE);
   const [errorMsg, setErrorMsg] = useState('');
-
   const [form, setForm] = useState({ name: '', email: '', phone: '' });
+
+  // Aguarda window.MercadoPago estar disponível antes de montar o Brick.
+  // Sem esse check o Brick monta antes do script externo do MP terminar de
+  // carregar e lança "Card token service not found".
+  const [sdkReady, setSdkReady] = useState(() => typeof window !== 'undefined' && !!window.MercadoPago);
+
+  useEffect(() => {
+    if (sdkReady) return;
+    let attempts = 0;
+    const timer = setInterval(() => {
+      attempts++;
+      if (window.MercadoPago) {
+        setSdkReady(true);
+        clearInterval(timer);
+      } else if (attempts >= 60) {
+        clearInterval(timer);
+        setStatus(STATUSES.ERROR);
+        setErrorMsg('Erro ao carregar o módulo de pagamento. Recarregue a página.');
+      }
+    }, 100);
+    return () => clearInterval(timer);
+  }, [sdkReady]);
 
   useEffect(() => {
     if (!plan) navigate('/?error=plan-not-found');
@@ -250,8 +271,16 @@ export default function Checkout() {
               <div className="mb-7">
                 <h2 className="text-xs font-semibold tracking-widest uppercase text-muted mb-4">Dados do cartão</h2>
 
+                {/* Aguarda SDK carregar antes de montar o Brick */}
+                {!sdkReady && (
+                  <div className="flex items-center gap-3 text-sm text-muted py-8">
+                    <div className="w-4 h-4 border-2 border-brand/30 border-t-brand rounded-full animate-spin" />
+                    Carregando formulário de pagamento...
+                  </div>
+                )}
+
                 {/* Overlay de processamento */}
-                <div className="relative">
+                <div className={`relative ${!sdkReady ? 'hidden' : ''}`}>
                   {status === STATUSES.PROCESSING && (
                     <div
                       className="absolute inset-0 z-10 flex items-center justify-center rounded-xl"
@@ -264,7 +293,7 @@ export default function Checkout() {
                     </div>
                   )}
 
-                  <CardPayment
+                  {sdkReady && <CardPayment
                     initialization={{
                       amount: plan.priceTotal,
                       preferenceId: undefined,
@@ -299,7 +328,7 @@ export default function Checkout() {
                       setStatus(STATUSES.ERROR);
                       setErrorMsg('Erro no formulário de pagamento. Verifique os dados do cartão.');
                     }}
-                  />
+                  />}
                 </div>
               </div>
             )}
