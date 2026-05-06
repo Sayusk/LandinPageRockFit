@@ -5,6 +5,7 @@ import { createSubscription } from '../services/mercadoPagoService.js';
 import logo from '../assets/Rockfitlogo.png';
 import { ShieldCheck, Lock, ChevronLeft } from 'lucide-react';
 import { PLANS } from '../data/plans.js';
+import Footer from '../components/layout/Footer';
 
 const publicKey = import.meta.env.VITE_MERCADO_PAGO_PUBLIC_KEY || '';
 const BRICK_CONTAINER_ID = 'mp-cardpayment-brick';
@@ -221,7 +222,7 @@ export default function Checkout() {
   }
 
   return (
-    <div className="min-h-screen bg-dark">
+    <div className="min-h-screen bg-dark flex flex-col">
       {/* Top bar */}
       <div className="glass-dark sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
@@ -236,9 +237,9 @@ export default function Checkout() {
           </div>
         </div>
       </div>
-
-      <div className="max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-10 lg:gap-16">
+      <div className="flex-1">
+        <div className="max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-16">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-10 lg:gap-16">
 
           {/* LEFT: Resumo do plano */}
           <div className="lg:col-span-2 order-2 lg:order-1">
@@ -457,7 +458,10 @@ export default function Checkout() {
           </p>
           </div>
         </div>
+        </div>
       </div>
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }

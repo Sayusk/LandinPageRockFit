@@ -8,6 +8,7 @@ const QUICK_LINKS = [
   { label: 'Como funciona', href: '#como-funciona' },
   { label: 'Planos', href: '#planos' },
   // { label: 'Depoimentos', href: '#depoimentos' },
+  { label: 'Checkout', href: '/checkout?plan=mensal' },
   { label: 'FAQ', href: '#faq' },
 ];
 
@@ -46,6 +47,7 @@ export default function Footer() {
   function handleNavClick(href) {
     if (href.startsWith('#')) {
       const el = document.querySelector(href);
+
       if (el) {
         el.scrollIntoView({ behavior: 'smooth' });
       } else {
@@ -55,6 +57,8 @@ export default function Footer() {
           if (el2) el2.scrollIntoView({ behavior: 'smooth' });
         }, 100);
       }
+    } else {
+      navigate(href);
     }
   }
 
