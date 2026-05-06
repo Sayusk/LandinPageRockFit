@@ -105,8 +105,7 @@ export default function PlansSection() {
                       )}
                     </>
                   ) : (
-                    // 👇 garante alinhamento do <hr>
-                    <div className="h-8" />
+                    <div className="h-[40px]" />
                   )}
                 </div>
 

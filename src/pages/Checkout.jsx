@@ -4,6 +4,7 @@ import { getPlanBySlug } from '../data/plans.js';
 import { createSubscription } from '../services/mercadoPagoService.js';
 import logo from '../assets/Rockfitlogo.png';
 import { ShieldCheck, Lock, ChevronLeft } from 'lucide-react';
+import { PLANS } from '../data/plans.js';
 
 const publicKey = import.meta.env.VITE_MERCADO_PAGO_PUBLIC_KEY || '';
 const BRICK_CONTAINER_ID = 'mp-cardpayment-brick';
@@ -37,6 +38,7 @@ export default function Checkout() {
   const [errorMsg, setErrorMsg] = useState('');
   const [brickReady, setBrickReady] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '' });
+  const [isOpen, setIsOpen] = useState(false);
 
   // Ref para acessar form atual dentro do callback do Brick sem stale closure
   const formRef = useRef(form);
@@ -223,7 +225,7 @@ export default function Checkout() {
       {/* Top bar */}
       <div className="glass-dark sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted hover:text-light transition-colors focus:outline-none">
+          <button onClick={() => navigate('/#planos')} className="flex items-center gap-2 text-sm text-muted hover:text-light transition-colors focus:outline-none">
           <ChevronLeft className="w-4 h-4" />
             Voltar
           </button>
@@ -240,6 +242,84 @@ export default function Checkout() {
 
           {/* LEFT: Resumo do plano */}
           <div className="lg:col-span-2 order-2 lg:order-1">
+            {/* 🔽 Seletor de planos (Dropdown) */}
+            <div className="mb-5">
+              <div className="text-xs font-semibold tracking-widest uppercase text-muted mb-3">
+                Escolha seu plano
+              </div>
+
+              {/* ORDEM FIXA */}
+              {(() => {
+                const ORDERED_PLANS = ['mensal', 'trimestral', 'semestral'];
+
+                const orderedPlans = ORDERED_PLANS
+                  .map((slug) => PLANS.find((p) => p.slug === slug))
+                  .filter(Boolean);
+
+                return (
+                  <>
+                    {/* Botão principal */}
+                    <button
+                      onClick={() => setIsOpen(!isOpen)}
+                      className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-white/[0.08] bg-dark-2 text-left"
+                    >
+                      <div>
+                        <div className="text-sm font-semibold text-light">
+                          {plan.name}
+                        </div>
+                        <div className="text-[11px] text-muted">
+                          R$ {plan.priceMonthly}/mês
+                        </div>
+                      </div>
+
+                      {/* seta animada */}
+                      <span
+                        className={`text-xs text-muted transition-transform duration-300 ${
+                          isOpen ? 'rotate-180' : ''
+                        }`}
+                      >
+                        ▼
+                      </span>
+                    </button>
+
+                    {/* Lista com animação */}
+                    <div
+                      className={`mt-2 flex flex-col gap-2 overflow-hidden transition-all duration-300 ${
+                        isOpen ? 'max-h-60 opacity-100' : 'max-h-0 opacity-0'
+                      }`}
+                    >
+                      {orderedPlans.map((p) => {
+                        const isActive = p.slug === plan.slug;
+
+                        return (
+                          <button
+                            key={p.id}
+                            onClick={() => {
+                              if (!isActive) {
+                                setIsOpen(false);
+                                navigate(`/checkout?plan=${p.slug}`);
+                              }
+                            }}
+                            className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${
+                              isActive
+                                ? 'border-brand bg-brand/10 text-light cursor-default'
+                                : 'border-white/[0.08] text-muted hover:border-brand/40 hover:text-light'
+                            }`}
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-semibold">{p.name}</span>
+                              <span className="text-xs">
+                                R$ {p.priceMonthly}/mês
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
             <div className="card-dark p-7 sticky top-28">
               <div className="text-xs font-semibold tracking-widest uppercase text-muted mb-4">Resumo do plano</div>
 

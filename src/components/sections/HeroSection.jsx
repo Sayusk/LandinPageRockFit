@@ -79,12 +79,6 @@ export default function HeroSection() {
             <button onClick={scrollToPlans} className="btn-primary text-sm px-7 py-4">
               Começar minha transformação →
             </button>
-            <button
-              onClick={scrollToPlans}
-              className="btn-outline text-sm px-7 py-4"
-            >
-              Ver planos
-            </button>
           </div>
 
           {/* Credibility pills */}
